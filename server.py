@@ -104,15 +104,15 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                     temp = i.split("=")
                     visits = int(temp[1]) + 1
                     headers["Set-Cookie"] = "visits=" + str(visits)
-                    response += "Set-Cookie: " + "visits=" + str(visits) + "; Max-Age: 3600" + "\r\n"
+                    response += "Set-Cookie: " + "visits=" + str(visits) + "; Max-Age=3600" + "\r\n"
                 else:
                     headers["Set-Cookie"] = i
-                    response += "Set-Cookie: " + str(i) + "; Max-Age: 3600" + "\r\n\r\n"
+                    response += "Set-Cookie: " + str(i) + "; Max-Age=3600" + "\r\n\r\n"
                         
         
             if "Cookie" not in request.headers and request.path == path:
                 headers["Set-Cookie"] = "visits=" + str(1)
-                response += "Set-Cookie: " + "visits=" + str(visits) + "; Max-Age: 3600" + "\r\n"
+                response += "Set-Cookie: " + "visits=" + str(visits) + "; Max-Age=3600" + "\r\n"
                 
             txt = "Times visited: " + str(visits)
             response += "Content-Length: "
