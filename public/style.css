@@ -1,9 +1,173 @@
+/*scrollbar*/
+
+::-webkit-scrollbar {width:0px; height:1px;}
+::-webkit-scrollbar-thumb {background:#222222;}
+::-webkit-scrollbar-track-piece {background:#000;}
 
 body {
     background-color: #232323;
     color: white;
+    overflow-y: scroll;
+    flex: 1;
+}
+
+a {
+    color: white;
+    text-decoration: none;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+th {
+    padding-left: 20px;
+    padding-right: 20px;
 }
 
 .my_image {
     width: 120px;
+}
+
+.scroll_button {
+    width: 400px;
+    flex-basis: 100px;
+    outline: 1px #6fa3ba solid;
+    outline-offset: 3px;
+    background-color: #6fa3ba;
+    z-index: 99999999999999;
+    position:absolute;
+    margin-top: 25%;
+    margin-left: 36%;
+    text-align: center;
+    line-height: 100px;
+}
+
+.render {
+    margin-left: 55vw;
+    margin-top: 8vh;
+    width: 100%;
+    height: 100%;
+    position:fixed;
+}
+
+.container {
+    flex-basis: 100vh;
+    width: 45%;
+    margin-left: 35%;
+    margin-top: 110vh;
+    text-align: justify;
+    padding: 20px;
+    background-color: #222222;
+    border-top: 10px #6fa3ba solid;
+    color: #fff;
+    box-shadow: 0 0.5px 1px #221a2a;
+    outline: 1px #6fa3ba solid;
+    outline-offset: 3px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    position: absolute;
+}
+
+.sticky {
+    height: 50px;
+    width: 100%;
+    top: 0px;
+    left: 0px;
+    background-color: #6fa3ba;
+    position: fixed;
+    overflow: hidden;
+    z-index: 999999999999999999999;
+}
+
+.header {
+    width: 100%;
+    height: 100vh;
+    margin: 0;
+    overflow: hidden;
+    background-color: #222222;
+    z-index: 9999999;
+    top: 0;
+    right: 0;
+    left: 0;
+    position: absolute;
+}
+
+.header_img {
+    background-repeat: none;
+    width: 100%;
+    height: 98vh;
+    margin: 0;
+    overflow: hidden;
+    border-bottom: 20px solid #6fa3ba;
+    position: absolute;
+}
+
+.header_text {
+    font-size: 14px;
+    margin-top: 12px;
+    width: 100%;
+}
+
+.image_div {
+    height: 200px;
+    width: auto;
+}
+
+img.post {
+    width: 120px;
+}
+
+.title {
+    height: 5%;
+}
+
+.heading {
+    display: flex;
+    background-color: #F6F1F1;
+    color: black;
+    height: 17%;
+    align-items: center;
+}
+
+.contents {
+    display: flex;
+    justify-content: space-around;
+    height: 78%
+}
+
+.chat {
+    width: 70%;
+    background-color: #146C94;
+    padding: 20px;
+}
+
+.video-chat {
+    background-color: #158Cb4;
+        padding: 20px;
+
+}
+
+#chat-messages {
+    height: 90%;
+    overflow: scroll;
+}
+
+.chat-form {
+    height: 30px;
+}
+
+.user-list {
+    width: 30%;
+    background-color: #19A7CE;
+    padding: 20px;
+}
+
+.heading > div {
+    padding: 20px;
+}
+
+.webrtc-video {
+    width: 100%;
 }
