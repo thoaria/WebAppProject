@@ -49,13 +49,12 @@ class Request:
             self.length = int(self.headers["Content-Length"])
             if len(self.body) > 1:
                 self.body = self.body[1]
-                self.body = self.body[0:self.length]
                 
         if "Content-Type" in self.headers and "multipart/form-data" in self.headers["Content-Type"]:
             self.boundary = self.headers["Content-Type"].encode().split(b';')[1]
             self.boundary = self.boundary.split(b'=')[1]
             self.multi = self.body.split(self.boundary)
-            print("self.multi", self.multi)
+            # print("self.multi", self.multi)
             for i in self.multi:
                 self.multiBounds += i.split(b'\r\n\r\n')
             print("self.multiBounds", self.multiBounds)
@@ -63,20 +62,20 @@ class Request:
             
             for i in self.multiBounds:
                 self.multiHeadersSplit += i.split(b'\r\n')
-            print("self.multiHeadersSplit", self.multiHeadersSplit)
+            # print("self.multiHeadersSplit", self.multiHeadersSplit)
             
             for i in self.multiHeadersSplit:
                 if b':' in i:
                     self.temp = i.split(b':')
                     self.multiHeaders[self.temp[0]] = self.temp[1]
-            print("self.multiHeaders", self.multiHeaders)
+            # print("self.multiHeaders", self.multiHeaders)
         
-            print("imageBytes: ", self.imageBytes)
+            # print("imageBytes: ", self.imageBytes)
             
             
         
         # print("length is: ", self.length)
         # print("self headers: ", self.headers)
-        print("cookies: ", self.cookies)
+        # print("cookies: ", self.cookies)
 
         # print("end.")

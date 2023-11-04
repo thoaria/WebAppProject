@@ -5,19 +5,14 @@ import pymongo
 import bcrypt
 from pymongo import MongoClient
 from random import randint
-mongo_client = MongoClient("mongo")
-db = mongo_client["cse312"]
-chat = db["chat-history"]
-logins = db["user-info"]
-import json
-import html
-import secrets
-import hashlib
-import io
-
-guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+import json, html, secrets, hashlib, io, os
 
 class Handle(Request):
+
+    mongo_client = MongoClient("mongo")
+    db = mongo_client["cse312"]
+    chat = db["chat-history"]
+    logins = db["user-info"]
 
     def sendIndex(request):
         retrieveFilename = None
@@ -25,7 +20,7 @@ class Handle(Request):
         index = None
         
         if "auth" in request.cookies:
-            retrieveFilename = logins.find_one({"auth":hashlib.sha256(request.cookies["auth"].encode()).digest()})
+            retrieveFilename = Handle.logins.find_one({"auth":hashlib.sha256(request.cookies["auth"].encode()).digest()})
         
         if retrieveFilename != None and len(retrieveFilename["profile"]):
             print("cookie exists")
@@ -121,18 +116,16 @@ class Handle(Request):
         return response
         
     def chatMessage(request):
-        mes = request.body.decode().split(":", 1)[1]
-        mes = mes[::-1]
-        mes = mes.replace("}", "", 1)
-        mes = mes[::-1]
-        mes = html.escape(mes)
+        mes = request.body.decode()
+        mes = json.loads(mes)
+        mes = html.escape(mes['message'])
                 
-        if "auth" in request.cookies and logins.find_one({"auth":hashlib.sha256(request.cookies["auth"].encode()).digest()}) != None:
-            username = logins.find_one({"auth":hashlib.sha256(request.cookies["auth"].encode()).digest()})["username"]
+        if "auth" in request.cookies and Handle.logins.find_one({"auth":hashlib.sha256(request.cookies["auth"].encode()).digest()}) != None:
+            username = Handle.logins.find_one({"auth":hashlib.sha256(request.cookies["auth"].encode()).digest()})["username"]
             # print("username is ", username)
-            chat.insert_one({"username": username, "message": mes, "id": str(randint(1000000, 9999999))})
+            Handle.chat.insert_one({"username": username, "message": mes, "id": str(randint(1000000, 9999999))})
         elif "auth" not in request.cookies:
-            chat.insert_one({"username": "guest", "message": mes, "id": str(randint(1000000, 9999999))})
+            Handle.chat.insert_one({"username": "guest", "message": mes, "id": str(randint(1000000, 9999999))})
                 
         response = request.http_version + " 200 OK" + "\r\n"
         response += "Content-Type: text/plain; charset=utf-8" + "\r\n"
@@ -151,7 +144,7 @@ class Handle(Request):
         return response
         
     def chatHistory(request):
-        messages = list(chat.find({}))
+        messages = list(Handle.chat.find({}))
         for i in messages:
             del i["_id"]
                 
@@ -175,13 +168,14 @@ class Handle(Request):
     def register(request):
         #username_reg=username&password_reg=password
         body = (request.body).decode().split("&", 1)
-        username = body[0].split("=", 1)[1]
-                
+        username = body[0].split("=", 1)[1]    
         password = body[1].split("=", 1)[1]
+        password = html.escape(password.replace("/", ""))
+        
         salt = bcrypt.gensalt()
         hashed = bcrypt.hashpw(password.encode(), salt)
                 
-        logins.insert_one({"username": username, "salt":salt, "password": hashed, "auth": "", "profile": ""})
+        Handle.logins.insert_one({"username": html.escape(username.replace("/", "")), "salt":salt, "password": hashed, "auth": "", "profile": ""})
                 
         response = request.http_version + " 301 Moved Permanently" + "\r\n"
 
@@ -223,12 +217,12 @@ class Handle(Request):
         
         
                 
-        for i in list(logins.find({})):
+        for i in list(Handle.logins.find({})):
             if i["username"] == username and i["password"] == bcrypt.hashpw(password.encode(), i["salt"]):
                 hashedAuth = hashlib.sha256(auth.encode()).digest()
                 # print("auth: ", auth)
                 # print("hashed auth: ", hashedAuth)
-                logins.update_one({"username": username}, {"$set": {"auth": hashedAuth}})
+                Handle.logins.update_one({"username": username}, {"$set": {"auth": hashedAuth}})
                         
                 request.cookies["auth"] = hashedAuth
                 response += "Set-Cookie: " + "auth=" + auth + "; Max-Age=3600; HttpOnly" + "\r\n"
@@ -250,14 +244,14 @@ class Handle(Request):
         checkAuth = None
         auth = None
         
-        if chat.find_one({"id":mesID}) != None:
-            checkID = chat.find_one({"id":mesID})
+        if Handle.chat.find_one({"id":mesID}) != None:
+            checkID = Handle.chat.find_one({"id":mesID})
             checkUser = checkID["username"]
             # print("checkDelete: ", checkDelete)
             # print("checkUser: ", checkUser)
-            if logins.find_one({"username": checkUser}) != None and "auth" in request.cookies:
+            if Handle.logins.find_one({"username": checkUser}) != None and "auth" in request.cookies:
                 auth = hashlib.sha256(request.cookies["auth"].encode()).digest()
-                checkAuth = logins.find_one({"username": checkUser})
+                checkAuth = Handle.logins.find_one({"username": checkUser})
                 # print("checkAuth: ", checkAuth)
                 
         return checkAuth, auth
@@ -272,7 +266,7 @@ class Handle(Request):
         checkAuth, auth = Handle.verifyAuth(mesID, request)
                 
         if auth != None and checkAuth != None and auth == checkAuth["auth"]:
-            chat.delete_one({"id": mesID})
+            Handle.chat.delete_one({"id": mesID})
             # print("deleted")
             response = request.http_version + " 200 OK" + "\r\n"
         else:
@@ -297,10 +291,18 @@ class Handle(Request):
         return response
     
     def verifyLoggedIn(request):
-        if "auth" in request.cookies and logins.find_one({"auth":hashlib.sha256(request.cookies["auth"].encode()).digest()}) != None:
+        if "auth" in request.cookies and Handle.logins.find_one({"auth":hashlib.sha256(request.cookies["auth"].encode()).digest()}) != None:
+            auth = Handle.logins.find_one({"auth":hashlib.sha256(request.cookies["auth"].encode()).digest()})
             return True
         elif "auth" not in request.cookies:
             return False
+        
+    def retrieveUsername(request):
+        if "auth" in request.cookies and Handle.logins.find_one({"auth":hashlib.sha256(request.cookies["auth"].encode()).digest()}) != None:
+            auth = Handle.logins.find_one({"auth":hashlib.sha256(request.cookies["auth"].encode()).digest()})
+            return auth['username']
+        elif "auth" not in request.cookies:
+            return "Guest"
         
     def extractFilename(request):
         values = request.multiHeaders[b'Content-Disposition'].split(b';')
@@ -317,15 +319,17 @@ class Handle(Request):
         
         if Handle.verifyLoggedIn(request) == True:
             img = io.BytesIO(request.imageBytes).read()
-            filename = (Handle.extractFilename(request)).decode().replace("/", "")
-            filename = "/public/image/" + filename[1:len(filename)-1]
+            ext = Handle.extractFormat(request)
+            filename = html.escape(Handle.retrieveUsername(request).replace("/", ""))
+            print("filename is", filename)
+            filename = "/public/image/" + filename + ext.decode()
             filename = filename[1:len(filename)]
             print("writing file: ", filename)
             with open(filename, "wb") as img_file:
                 img_file.write(img)
             
-            storeFilename = logins.find_one({"auth":hashlib.sha256(request.cookies["auth"].encode()).digest()})
-            logins.update_one({"auth": storeFilename["auth"]}, {"$set": {"profile": filename}})
+            storeFilename = Handle.logins.find_one({"auth":hashlib.sha256(request.cookies["auth"].encode()).digest()})
+            Handle.logins.update_one({"auth": storeFilename["auth"]}, {"$set": {"profile": filename}})
         
         response = request.http_version + " 302 Redirect" + "\r\n"
         response += "Content-Length: "
@@ -334,30 +338,23 @@ class Handle(Request):
         response += "X-Content-Type-Options: nosniff\r\n\r\n"
         response = response.encode()
         
+        
         # print("logins: ", logins.find_one({"auth":hashlib.sha256(request.cookies["auth"].encode()).digest()}))
-        
-        return response
-    
-    def websocket(request):
-        
-        key = request.headers['Sec-WebSocket-Key'] + guid
-        hashed = hashlib.sha256(key.encode()).digest()
-        
-        response = request.http_version + " 101 Switching Protocols" + "\r\n"
-        response += "Connection: Upgrade" + "\r\n"
-        response += "Upgrade: websocket" + "\r\n"
-        response += "Sec-WebSocket-Accept: "
-        response = response.encode()
-        response += hashed + b'\r\n\r\n'
-        
-        if Handle.verifyLoggedIn(request) == True:
-            print("authenticated")
-        
-        print("response: ", response)
         
         return response
 
     def handleResponse(request):
+        
+        # TODO: Parse the HTTP request and use self.request.sendall(response) to send your response
+        
+        # check the path to determine what is sent in the response
+        # if .contains .html, send index
+        # if .contains .css, send css
+        # if .png or .jpg, send img
+        # anything else, error 404
+        # ex: HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 5\r\n\r\nhello
+        
+        # print("request.path: " + request.path)
         
         response = request.http_version + "404 Not Found" + "\r\n"
         response += "Content-Type: text/html; charset=utf-8" + "\r\n"
@@ -393,7 +390,5 @@ class Handle(Request):
             response = Handle.deleteMessage(request)
         elif "/profile-pic" in request.path and request.method == "POST":
             response = Handle.profile(request)
-        elif "/websocket" in request.path:
-            response = Handle.websocket(request)
 
         return response

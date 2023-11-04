@@ -2,6 +2,8 @@ version: '3.3'
 services:
   mongo:
     image: mongo:7.0.0
+    ports:
+      - '27017:27017'
   app:
     build: .
     environment:
