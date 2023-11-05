@@ -12,24 +12,32 @@ chat = db["chat-history"]
 logins = db["user-info"]
 import json, html, secrets, hashlib, io, base64
 
-class HandleWebsocket(Request):
+class HandleWebsocket():
     
     stored_frames = bytearray()
     leftover = bytes()
     
-    def sendChatMessage(request, response, username):
+    def sendWebRTC(response):
+        payload = json.dumps(response)
+        frame = bytearray(int.to_bytes(0b10000001, 1, 'big'))
+        return HandleWebsocket.sendFrames(payload, frame)
+    
+    def sendChatMessage(response, username):
         
         print("here")
         print("username:", username)
         
         payload = {'messageType':'chatMessage', 'username':username, 'message':html.escape(response['message']), 'id':str(randint(1000000, 9999999))}
         Handle.chat.insert_one({"username": username, "message": payload['message'], "id": payload['id']})
-        
+
         payload = json.dumps(payload)
-        # print("json.dumps(response):", payload)
-        length = len(payload.encode())
         frame = bytearray(int.to_bytes(0b10000001, 1, 'big'))
         
+        return HandleWebsocket.sendFrames(payload, frame)
+
+    def sendFrames(payload, frame):
+        
+        length = len(payload.encode())
         print("length:", length)
         # print("frame:", frame)
         
@@ -63,30 +71,31 @@ class HandleWebsocket(Request):
         
         return frame
     
-    def websocket(request, received_data, self):
+    def websocket(self):
         
         print("parse text")
         print("leftover: ", HandleWebsocket.leftover)
         
-        received_data = HandleWebsocket.leftover + received_data
         payload = bytearray()
-        first = received_data[0]
         fin = 0
         
-        print("leftover + received_data", received_data)
-        print("first:", bin(first))
-        
         while fin == 0:
-            fin = (first & 128) >> 7
-            opcode = first & 0b00001111
+            print("while loop")
+            first = self.request.recv(1)
+            fin = (int.from_bytes(first, 'big') & 128) >> 7
+            opcode = int.from_bytes(first, 'big') & 0b00001111
+            
+            print("opcode:", opcode)
+            
+            if opcode == 8:
+                return
             
             maskIndex = 2
-            received_data += self.request.recv(1)
-            second = received_data[1]
-            mask = (second & 128) >> 7
-            payloadLength = second & 127
+            second = self.request.recv(1)
+            mask = (int.from_bytes(second, 'big') & 128) >> 7
+            payloadLength = int.from_bytes(second, 'big') & 127
             
-            print("recieved_data:", received_data, ", second:", second, "mask:", mask, "payloadLength:", payloadLength)
+            print("second:", second, "mask:", mask, "payloadLength:", payloadLength)
         
             # length = received_data[1] & 127
             # maskIndex = 2
@@ -105,28 +114,24 @@ class HandleWebsocket(Request):
             
             if payloadLength == 126:
                 maskIndex = 4
-                received_data += self.request.recv(2)
-                payloadLengthBytes = received_data[2:4]
+                payloadLengthBytes = self.request.recv(2)
                 print("payloadLengthBytes:", payloadLengthBytes)
                 payloadSize = int.from_bytes(payloadLengthBytes, 'big')
             elif payloadLength == 127:
                 maskIndex = 10
-                received_data += self.request.recv(8)
-                payloadLengthBytes = received_data[2:10]
+                payloadLengthBytes = self.request.recv(8)
                 payloadSize = int.from_bytes(payloadLengthBytes, 'big')
             
-            maskEnd = maskIndex + 4
+            if mask == 0:
+                return
             
-            received_data += self.request.recv(4)
-            mask = (received_data[maskIndex:maskEnd])
+            mask = self.request.recv(4)
             print("mask:", mask)
             
             print("payloadSize:", payloadSize)
             
-            payload += received_data[maskEnd:]
-            
             while len(payload) < payloadSize:
-                payload += self.request.recv(2048)
+                payload += self.request.recv(min(payloadSize-len(payload), 2048))
 
             # print("payload int?", payload)
 
@@ -155,35 +160,32 @@ class HandleWebsocket(Request):
         
         payload = payload[:payloadSize]
         
-        # print("payload cut", payload)
-        # print("leftover:", HandleWebsocket.leftover)
-        # payload += b'"}'
+        if opcode == 1:
+            # print("payload cut", payload)
+            # print("leftover:", HandleWebsocket.leftover)
+            # payload += b'"}'
+            
+            # print("stored_frames:", HandleWebsocket.stored_frames)
+            
+            response = payload.decode()
+            response = json.loads(response)
+            
+            print("response: ", response)
+            return response
         
-        # print("stored_frames:", HandleWebsocket.stored_frames)
-        
-        response = payload.decode()
-        response = json.loads(response)
-        
-        # print("response: ", response)
-        return response
-    
-    def bufferFrames(request, received_data):
-        
-        
-        
-        return 
+        return
 
-    def handleResponse(request, opcode, received_data, username, self):
-        
-        username = html.escape(username)
+    def handleResponse(username, self):
         
         # print("request.path: " + request.path)
         response = None
         payloadLength = None
         
-        response = HandleWebsocket.websocket(request, received_data, self)
+        response = HandleWebsocket.websocket(self)
         
         if response != None and response['messageType'] == "chatMessage":
-            response = HandleWebsocket.sendChatMessage(request, response, username)
+            response = HandleWebsocket.sendChatMessage(response, username)
+        elif response != None:
+            response = HandleWebsocket.sendWebRTC(response)
 
         return response

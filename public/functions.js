@@ -57,7 +57,6 @@ function sendChat() {
     if (ws) {
         // Using WebSockets
         socket.send(JSON.stringify({'messageType': 'chatMessage', 'message': message}));
-        socket.send(JSON.stringify({'messageType': 'chatMessage', 'message': message}));
     } else {
         // Using AJAX
         const request = new XMLHttpRequest();

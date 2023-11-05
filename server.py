@@ -60,22 +60,21 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             MyTCPHandler.websocket_connections.add(self)
             
             while True:
-                r = None
-                opcode = None
-                received_data = self.request.recv(1)
-                if len(received_data) > 0:
-                    opcode = received_data[0] & 0b00001111
-                if opcode != None:
-                    print("received data: ", received_data)
-                    print("opcode: ", opcode)
+                # r = None
+                # opcode = None
+                # received_data = self.request.recv(1)
+                # if len(received_data) > 0:
+                #     opcode = received_data[0] & 0b00001111
+                #     print("received data: ", received_data)
+                #     print("opcode: ", opcode)
 
-                # parse data as websocket
-                # build response as websocket
-                # print("websocket_connections:", MyTCPHandler.websocket_connections)
-                if opcode == 8:
-                    MyTCPHandler.websocket_connections.remove(self)
-                    break
-                r = HandleWebsocket.handleResponse(request, opcode, received_data, username, self)
+                # # parse data as websocket
+                # # build response as websocket
+                # # print("websocket_connections:", MyTCPHandler.websocket_connections)
+                # if opcode == 8:
+                #     MyTCPHandler.websocket_connections.remove(self)
+                #     break
+                r = HandleWebsocket.handleResponse(username, self)
                 if r != None:
                     # print('Sending: frame: ', r)
                     self.send_message_to_all_WS_connections(r)
